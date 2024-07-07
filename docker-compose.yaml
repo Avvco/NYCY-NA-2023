@@ -1,0 +1,29 @@
+services:
+  hw4-nginx:
+    build: 
+      context: /vagrant/nginx
+      dockerfile: Dockerfile
+    network_mode: "host"
+    # ports:
+    #   - 80:80
+    #   - 443:443
+    #   - 3443:3443 # Map container port 3443 to host port 3443
+    volumes:
+      - /etc/nginx/conf.d/:/etc/nginx/conf.d
+      - /home/judge/www/:/home/judge/www
+      - /home/judge/log:/home/judge/log
+    depends_on:
+      - hw4-php
+  hw4-php:
+    image: bitnami/php-fpm
+    network_mode: "host"
+    volumes:
+      - /vagrant/nginx/htmls/php:/php
+
+  # caddy:
+  #   image: caddy:latest
+  #   ports:
+  #     - 3443:3443 # Map container port 3443 to host port 3443
+  #   volumes:
+  #     - /vagrant/caddy/Caddyfile:/etc/caddy/Caddyfile # Mount your Caddyfile
+  #   command: [ "caddy", "run", "--config", "/etc/caddy/Caddyfile" ] 

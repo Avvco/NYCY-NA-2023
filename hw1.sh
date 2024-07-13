@@ -46,7 +46,9 @@ echo '# Allow passwordless sudo for the specified user
 judge ALL=(ALL) NOPASSWD: ALL' | visudo -cf -
 
 mkdir -p /home/judge/.ssh
+cp /home/vagrant/.ssh/authorized_keys /home/judge/.ssh/authorized_keys
 curl https://nasa.cs.nycu.edu.tw/sa/2023/nasakey.pub >> /home/judge/.ssh/authorized_keys
+chown -R judge:judge /home/judge/.ssh
 
 # install wireguard
 apt-get update
@@ -55,7 +57,7 @@ snap install yq
 
 mkdir -p /usr/local/etc/wireguard
 cp /vagrant/wg0.conf /usr/local/etc/wireguard/wg0.conf
-wg-quick up /usr/local/etc/wireguard/wg0.conf
+# wg-quick up /usr/local/etc/wireguard/wg0.conf
 
 echo HW1 setting up successfully
 
@@ -94,6 +96,65 @@ chmod 777 /tmp
 # chmod -R 774 /home/sftp/hidden
 # chmod -R 555 /home/sftp/hidden/treasure
 
+
+
+# Users and groups
+sftpusers_groupname="sftpusers"
+
+# SFTP root directory
+sftp_root="/home/sftp"
+
+rm -rf "$sftp_root"
+
+# Ensure SFTP root directory and subdirectories exist
+mkdir -p "$sftp_root/public" "$sftp_root/hidden/treasure"
+
+# Create group and add users to it
+groupadd "$sftpusers_groupname"
+useradd -d "$sftp_root/$user" -s /usr/sbin/nologin -g "$sftpusers_groupname" sfpt-u1
+useradd -d "$sftp_root/$user" -s /usr/sbin/nologin -g "$sftpusers_groupname" sfpt-u2
+useradd -d "$sftp_root/$user" -s /usr/sbin/nologin -g "$sftpusers_groupname" anonymous
+
+# Create sysadm user and give it full access
+useradd -d "$sftp_root" -m sysadm
+
+
+# set ssh key for this four users
+mkdir -p "$sftp_root/sftp-u1/.ssh" "$sftp_root/sftp-u2/.ssh" "$sftp_root/anonymous/.ssh" "$sftp_root/sysadm/.ssh"
+cp /home/judge/.ssh/authorized_keys "$sftp_root/sftp-u1/.ssh/authorized_keys"
+cp /home/judge/.ssh/authorized_keys "$sftp_root/sftp-u2/.ssh/authorized_keys"
+cp /home/judge/.ssh/authorized_keys "$sftp_root/anonymous/.ssh/authorized_keys"
+cp /home/judge/.ssh/authorized_keys "$sftp_root/sysadm/.ssh/authorized_keys"
+
+chown -R sysadm:sysadm "$sftp_root/sysadm/.ssh"
+chown -R sftp-u1:sftpusers "$sftp_root/sftp-u1/.ssh"
+chown -R sftp-u2:sftpusers "$sftp_root/sftp-u2/.ssh"
+chown -R anonymous:sftpusers "$sftp_root/anonymous/.ssh"
+
+# Create hidden/treasure/secret
+echo secret >> "$sftp_root/hidden/treasure/secret"
+chown sysadm:sysadm "$sftp_root/hidden/treasure/secret"
+chmod 644 "$sftp_root/hidden/treasure/secret"
+
+# Set permissions for directories
+chown root:root "$sftp_root"
+chmod 755 "$sftp_root"
+
+chown root:"$sftpusers_groupname" "$sftp_root/public"
+chmod 775 "$sftp_root/public"
+
+chown sysadm:sysadm "$sftp_root/hidden"
+chmod 755 "$sftp_root/hidden"
+
+chown sysadm:"$sftpusers_groupname" "$sftp_root/hidden/treasure"
+chmod 755 "$sftp_root/hidden/treasure"
+
+# Modify sshd_config for SFTP restrictions (except for sysadm)
+echo "Match Group $sftpusers_groupname" | sudo tee -a /etc/ssh/sshd_config
+echo "    ChrootDirectory $sftp_root/%u" | sudo tee -a /etc/ssh/sshd_config
+echo "    ForceCommand internal-sftp" | sudo tee -a /etc/ssh/sshd_config
+
+
 # hw4 setup
 mkdir -p /home/judge/log
 # apt install nginx -y
@@ -115,13 +176,13 @@ tr -d '\r' < /home/judge/log/judge-rotate.conf-CRLF > /home/judge/log/judge-rota
 
 echo "127.0.0.1    67.cs.nycu" >> /etc/hosts
 
-echo alias curl_http3=\'docker run -it --rm --network host ymuski/curl-http3 curl --http3 -vkL \"$@\"\' >> /etc/bash.bashrc
+echo alias curl_http3=\'docker run -it --rm --network host ymuski/curl-http3 curl --http3 -kL \"$@\"\' >> /etc/bash.bashrc
 source /etc/bash.bashrc
 
 docker pull ymuski/curl-http3
 # docker run -t --rm --network host badouralix/curl-http3
 # docker run -it --rm --network host ymuski/curl-http3 curl --http3 -vkL https://67.cs.nycu:3443
-# curl_http3 https://67.cs.nycu:3443
+# curl_http3 -v https://67.cs.nycu:3443
 
 # docker build -f /vagrant/nginx/Dockerfile -t hw4-nginx .
 # docker pull bitnami/php-fpm
@@ -132,7 +193,7 @@ docker pull ymuski/curl-http3
 #   -v /home/judge/www/:/home/judge/www \
 #   -v /home/judge/log:/home/judge/log \
 #   hw4-nginx
-docker-compose -f /vagrant/docker-compose.yaml up -d
+# docker-compose -f /vagrant/docker-compose.yaml up -d
 
 # curl -k https://67.cs.nycu
 # curl -kL https://67.cs.nycu/info-67.php
@@ -188,3 +249,7 @@ systemctl restart fail2ban
 cp /vagrant/iamgoodguy.sh /home/judge/iamgoodguy_CRLF.sh
 tr -d '\r' < /home/judge/iamgoodguy_CRLF.sh > /bin/iamgoodguy
 chmod 777 /bin/iamgoodguy
+
+cp /vagrant/.vagrant/machines/TiramisuVM/virtualbox/private_key /private_key
+chmod 400 /private_key
+chown vagrant:vagrant /private_key

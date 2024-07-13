@@ -110,7 +110,7 @@ Vagrant.configure("2") do |config|
   # documentation for more information about their specific syntax and use.
 
   # Set the timezone that matches the host
-  config.timezone.value = :host
+  config.timezone.value = "ROC"
 
   # run only when vm iniitialize
   # config.vm.provision :shell, privileged: true, path: "./createSwap.sh"
@@ -119,7 +119,7 @@ Vagrant.configure("2") do |config|
   # config.vm.provision :shell, privileged: true, path: "./installk8s.sh"
   config.vm.provision :shell, privileged: true, path: "./hw1.sh"
   # config.vm.provision :reload
-  # config.vm.provision :shell, privileged: true, path: "./startup.sh", run: 'always'
+  config.vm.provision :shell, privileged: true, path: "./startService.sh", run: 'always'
   
   # =================================================================
 end

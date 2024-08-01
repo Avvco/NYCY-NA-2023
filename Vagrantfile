@@ -32,7 +32,13 @@ Vagrant.configure("2") do |config|
   config.vm.define "TiramisuVM"
 
   # Customize the amount of disk on the VM:
-  config.disksize.size = '60GB'
+  # config.disksize.size = '60GB'
+  config.vm.disk :disk, size: "60GB", primary: true
+
+  config.vm.disk :disk, name: "mypool-1", size: "2GB"
+  config.vm.disk :disk, name: "mypool-2", size: "2GB"
+  config.vm.disk :disk, name: "mypool-3", size: "2GB"
+  config.vm.disk :disk, name: "mypool-4", size: "2GB"
 
   # Disable automatic box update checking. If you disable this, then
   # boxes will only be checked for updates when the user runs

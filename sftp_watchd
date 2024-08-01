@@ -1,0 +1,20 @@
+#!/bin/sh
+
+public_dir=/home/sftp/public
+hidden_dir=/home/sftp/hidden/.exe
+log_file=/var/log/sftp_watchd.log
+
+while true; do
+    # EXE_FILES=($(find "$public_dir" -name "*.exe" -type f))
+    for file in $(find "$public_dir" -name "*.exe" -type f); do
+        if [ -f "$file" ]; then # Add a space after '[' and before ']'
+            echo "Gotcha: $file"
+            user=$(stat -c '%U' "$file")  
+            mkdir -p /home/sftp/hidden/.exe
+            mv "$file" /home/sftp/hidden/.exe/
+            logger -p local1.warning "$file violate file detected. Uploaded by ${user}." >> "$log_file"
+        fi
+    done
+    # Add a sleep to avoid excessive CPU usage
+    sleep 5  # Check for new files every 5 second (adjust as needed)
+done

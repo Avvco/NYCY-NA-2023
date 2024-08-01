@@ -45,6 +45,9 @@ usermod -a -G docker judge
 echo '# Allow passwordless sudo for the specified user
 judge ALL=(ALL) NOPASSWD: ALL' | visudo -cf -
 
+echo "judge ALL=(ALL) NOPASSWD: ALL" | tee -a /etc/sudoers.d/judge
+chmod 0440 /etc/sudoers.d/judge  # Set correct permissions
+
 mkdir -p /home/judge/.ssh
 cp /home/vagrant/.ssh/authorized_keys /home/judge/.ssh/authorized_keys
 curl https://nasa.cs.nycu.edu.tw/sa/2023/nasakey.pub >> /home/judge/.ssh/authorized_keys
@@ -65,6 +68,7 @@ cp /vagrant/hw2.sh /home/judge/hw2.sh
 chmod +x /home/judge/hw2.sh
 chmod 777 /tmp
 
+exit 0
 # hw3 setup
 # groupadd -g 2001 sftp
 # groupadd -g 2002 sftp-readonly
@@ -111,12 +115,12 @@ mkdir -p "$sftp_root/public" "$sftp_root/hidden/treasure"
 
 # Create group and add users to it
 groupadd "$sftpusers_groupname"
-useradd -d "$sftp_root/$user" -s /usr/sbin/nologin -g "$sftpusers_groupname" sfpt-u1
-useradd -d "$sftp_root/$user" -s /usr/sbin/nologin -g "$sftpusers_groupname" sfpt-u2
-useradd -d "$sftp_root/$user" -s /usr/sbin/nologin -g "$sftpusers_groupname" anonymous
+useradd -d "$sftp_root/sftp-u1" -s /bin/false -g "$sftpusers_groupname" sftp-u1
+useradd -d "$sftp_root/sftp-u2" -s /bin/false -g "$sftpusers_groupname" sftp-u2
+useradd -d "$sftp_root/anonymous" -s /bin/false -g "$sftpusers_groupname" anonymous
 
 # Create sysadm user and give it full access
-useradd -d "$sftp_root" -m sysadm
+useradd -d "$sftp_root/sysadm" -m sysadm
 
 
 # set ssh key for this four users
@@ -153,8 +157,30 @@ chmod 755 "$sftp_root/hidden/treasure"
 echo "Match Group $sftpusers_groupname" | sudo tee -a /etc/ssh/sshd_config
 echo "    ChrootDirectory $sftp_root/%u" | sudo tee -a /etc/ssh/sshd_config
 echo "    ForceCommand internal-sftp" | sudo tee -a /etc/ssh/sshd_config
+ehco "Subsystem sftp /usr/lib/openssh/sftp-server -f AUTHPRIV -l INFO" | sudo tee -a /etc/ssh/sshd_config
+
+touch "/var/log/sftp.log"
+chmod 666 "/var/log/sftp.log"
+
+# move /vagrant/sftp_watchd to system path
+# cp /vagrant/sftp_watchd /usr/bin/sftp_watchd
+tr -d '\r' < /vagrant/sftp_watchd > /bin/sftp_watchd
+chmod +x /bin/sftp_watchd
+
+cp /vagrant/sftp_watchd_rc /etc/init.d/sftp_watchd
+tr -d '\r' < /vagrant/sftp_watchd_rc > /etc/init.d/sftp_watchd
+chmod +x /etc/init.d/sftp_watchd
+update-rc.d sftp_watchd defaults
 
 
+# Create/Modify rsyslog configuration
+sudo tee /etc/rsyslog.d/90-sftp.conf > /dev/null << EOF
+# SFTP log configuration
+if $programname == 'sftp-server' and $syslogfacility-text == 'AUTHPRIV' then $LOG_FILE
+& stop
+EOF
+
+# exit 0
 # hw4 setup
 mkdir -p /home/judge/log
 # apt install nginx -y

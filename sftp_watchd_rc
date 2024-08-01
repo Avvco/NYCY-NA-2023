@@ -1,0 +1,71 @@
+#!/bin/sh
+#
+# /etc/init.d/sftp_watchd_rc
+#
+
+### BEGIN INIT INFO
+# Provides:          sftp_watchd
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start/stop sftp_watchd daemon
+# Description:       This script controls the sftp_watchd daemon.
+### END INIT INFO
+
+SCRIPT=/bin/sftp_watchd
+RUNAS=root  # Replace with the user to run the script as
+
+start() {
+  if [ -f /var/run/sftp_watchd.pid ]; then
+    echo "sftp_watchd already running"
+    exit 0
+  fi
+  echo "Starting sftp_watchd"
+  $SCRIPT &
+  echo $! > /var/run/sftp_watchd.pid
+}
+
+stop() {
+  if [ ! -f /var/run/sftp_watchd.pid ]; then
+    echo "sftp_watchd not running"
+    exit 0
+  fi
+  echo "Kill: `cat /var/run/sftp_watchd.pid`."
+  kill `cat /var/run/sftp_watchd.pid`
+  rm /var/run/sftp_watchd.pid
+}
+
+restart() {
+  stop
+  start
+}
+
+status() {
+  if [ -f /var/run/sftp_watchd.pid ]; then
+    echo "sftp_watchd is running as pid `cat /var/run/sftp_watchd.pid`."
+    # echo "sftp_watchd is running as pid 3204."
+  else
+    echo "sftp_watchd is stopped"
+  fi
+}
+
+case "$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  status)
+    status
+    ;;
+  restart)
+    restart
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|status|restart}"
+    exit 1
+    ;;
+esac
+exit 0
